@@ -31,3 +31,6 @@ composer.lock
 .env.save*
 graphify-out/cache/ast/
 graphify-out/20*/
+adminer-5.4.4.php
+db.php
+public/db.php
