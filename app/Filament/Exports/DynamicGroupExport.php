@@ -35,6 +35,20 @@ class DynamicGroupExport extends ExcelExport implements WithEvents
         return $this;
     }
 
+    /**
+     * Filament formatters for money, date and numeric columns type-hint
+     * `?Model $relatedRecord`. The Excel exporter only injects `$record`,
+     * so the container tries to instantiate the abstract Model class.
+     */
+    public function evaluate(mixed $value, array $parameters = []): mixed
+    {
+        if (array_key_exists('record', $parameters) && ! array_key_exists('relatedRecord', $parameters)) {
+            $parameters['relatedRecord'] = $parameters['record'];
+        }
+
+        return parent::evaluate($value, $parameters);
+    }
+
     public function registerEvents(): array
     {
         return [
