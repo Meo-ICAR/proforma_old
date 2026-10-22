@@ -294,7 +294,8 @@ class ImportProvvigioniFromApi extends Command
                     $piva = trim($provvigioneData['piva']);
                     $pivanew = $piva;
                     $nameprod = $provvigioneData['denominazione_riferimento'];
-                    if ($provvigioneData['entrata_uscita'] == 'Uscita' && ! (strlen($piva) === 11)) {
+                    $isRiferimentoCliente = $this->isRiferimentoCliente($nameprod, $existingPratica);
+                    if ($provvigioneData['entrata_uscita'] == 'Uscita' && ! $isRiferimentoCliente && ! (strlen($piva) === 11)) {
                         $fornitore = Fornitore::where('name', $nameprod)->first();
                         if ($fornitore && ($fornitore->piva != $piva)) {
                             $pivanew = $fornitore->piva;
@@ -331,7 +332,7 @@ class ImportProvvigioniFromApi extends Command
                         }
                     } else {
                         //  $provvigioneData->stato='Inserito';
-                        if ($provvigioneData['entrata_uscita'] == 'Uscita') {
+                        if ($provvigioneData['entrata_uscita'] == 'Uscita' && ! $isRiferimentoCliente) {
                             $fornitore = Fornitore::firstOrCreate(
                                 ['name' => $provvigioneData['denominazione_riferimento']],
                                 ['piva' => $provvigioneData['piva']]
@@ -439,6 +440,26 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
         return array_map(function ($part) {
             return trim($part, " \t\n\r\0\v\"'`");
         }, $parts);
+    }
+
+    /**
+     * Verifica se il riferimento del compenso coincide con il cliente della pratica
+     * (l'API lo restituisce come beneficiario, ad esempio nelle pratiche declinate),
+     * così da non trattarlo come fornitore.
+     */
+    protected function isRiferimentoCliente(?string $riferimento, Pratica $pratica): bool
+    {
+        $normalize = fn (?string $value): string => mb_strtolower(preg_replace('/\s+/', ' ', trim((string) $value)));
+
+        $riferimento = $normalize($riferimento);
+        if ($riferimento === '') {
+            return false;
+        }
+
+        return in_array($riferimento, [
+            $normalize($pratica->cognome_cliente.' '.$pratica->nome_cliente),
+            $normalize($pratica->nome_cliente.' '.$pratica->cognome_cliente),
+        ], true);
     }
 
     protected function mapApiToModel(array $apiData): array
