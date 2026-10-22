@@ -23,6 +23,8 @@ class ImportProvvigioniFromApi extends Command
 
     public $companyId = '';
 
+    protected int $coordinamentoDifformi = 0;
+
     public function handle()
     {
         /*
@@ -393,6 +395,12 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
 
             $this->info("Import completed. Imported: {$imported}, Updated: {$updated}, Errors: {$errors}");
 
+            \Log::info('Provvigioni import: coordinamento ricavato diverso da quello passato', [
+                'difformi' => $this->coordinamentoDifformi,
+                'totale' => count($data),
+            ]);
+            $this->info("Coordinamento difforme (ricavato vs passato): {$this->coordinamentoDifformi} su ".count($data));
+
             return 0;
         } catch (RequestException $e) {
             $this->error('HTTP Request Error: '.$e->getMessage());
@@ -491,13 +499,7 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
         $coordinamentoApi = in_array(strtolower(trim((string) ($apiData['Coordinamento'] ?? ''))), ['1', 'si', 'sì', 's', 'true'], true);
 
         if (isset($apiData['Coordinamento']) && $coordinamentoApi !== $coordinamento) {
-            \Log::warning('Provvigioni import: coordinamento API diverso da quello ricavato', [
-                'id' => $apiData['ID Compenso'] ?? null,
-                'api' => $apiData['Coordinamento'],
-                'derivato' => $coordinamento,
-                'agente' => $apiData['Agente'] ?? null,
-                'denominazione_riferimento' => $apiData['Denominazione Riferimento'] ?? null,
-            ]);
+            $this->coordinamentoDifformi++;
         }
 
         return [
