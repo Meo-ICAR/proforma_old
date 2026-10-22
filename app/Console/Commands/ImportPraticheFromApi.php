@@ -102,12 +102,25 @@ class ImportPraticheFromApi extends Command
             $imported = 0;
             $updated = 0;
             $errors = 0;
+            $futureDates = 0;
             $adesso = now();
             foreach ($data as $item) {
                 try {
                     $praticaData = $this->mapApiToModel($item);
 
                     $praticaData['upload_at'] = $adesso;
+                    $praticaData['rejected_at'] = $this->parseDate($item['Data Annullamento'] ?? null);
+
+                    foreach (['rejected_at', 'sended_at', 'approved_at', 'erogated_at'] as $campoData) {
+                        if ($praticaData[$campoData] instanceof Carbon && $praticaData[$campoData]->isFuture()) {
+                            $futureDates++;
+                            \Log::warning('Pratiche import: data futura', [
+                                'id' => $praticaData['id'],
+                                'campo' => $campoData,
+                                'valore' => $praticaData[$campoData]->toDateString(),
+                            ]);
+                        }
+                    }
                     if ($praticaData['is_notowned'] === true) {
                         continue;
                     }
@@ -188,7 +201,7 @@ class ImportPraticheFromApi extends Command
                 }
             }
 
-            $this->info("Import completed. Imported: {$imported}, Updated: {$updated}, Errors: {$errors}");
+            $this->info("Import completed. Imported: {$imported}, Updated: {$updated}, Errors: {$errors}, Future dates: {$futureDates}");
 
             try {
                 $this->info('Calculating FIRR contributions...');

@@ -131,6 +131,7 @@ class ImportProvvigioniFromApi extends Command
                 'Partita IVA Agente',
                 'Codice Fiscale Agente',
                 'ANNULLATA',
+                'Coordinamento',
             ];
 
             // Check if all required headers are present in the response
@@ -233,6 +234,7 @@ class ImportProvvigioniFromApi extends Command
                     'Partita IVA Agente',
                     'Codice Fiscale Agente',
                     'ANNULLATA',
+                    'Coordinamento',
                 ];
 
                 $actualHeaders = array_keys($firstItem);
@@ -476,6 +478,7 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
             'Partita IVA Agente',
             'Codice Fiscale Agente',
             'ANNULLATA',
+            'Coordinamento',
         ];
 
         // Parse all date fields
@@ -483,6 +486,19 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
         $dataPagamento = $parseDate($apiData['Data Pagamento'] ?? null);
         $dataFattura = $parseDate($apiData['Data Fattura'] ?? null);
         $dataStatus = $parseDate($apiData['Data Status'] ?? null);
+
+        $coordinamento = $apiData['Agente'] != $apiData['Denominazione Riferimento'];
+        $coordinamentoApi = in_array(strtolower(trim((string) ($apiData['Coordinamento'] ?? ''))), ['1', 'si', 'sì', 's', 'true'], true);
+
+        if (isset($apiData['Coordinamento']) && $coordinamentoApi !== $coordinamento) {
+            \Log::warning('Provvigioni import: coordinamento API diverso da quello ricavato', [
+                'id' => $apiData['ID Compenso'] ?? null,
+                'api' => $apiData['Coordinamento'],
+                'derivato' => $coordinamento,
+                'agente' => $apiData['Agente'] ?? null,
+                'denominazione_riferimento' => $apiData['Denominazione Riferimento'] ?? null,
+            ]);
+        }
 
         return [
             'id' => $apiData['ID Compenso'] ?? null,
@@ -509,7 +525,7 @@ set f.data_pagamento = s.registration_date, f.n_fattura = coalesce(s.supplier_in
             // 'annullato' => !empty($apiData['ANNULLATA']) && $apiData['ANNULLATA'] === 'SI',
             //  'invoice_number' => $apiData['ANNULLATA'] ?? null,
             'fonte' => 'mediafacile',
-            'coordinamento' => $apiData['Agente'] != $apiData['Denominazione Riferimento'],
+            'coordinamento' => $coordinamento,
             'iscliente' => (isset($apiData['Descrizione']) && str_contains($apiData['Descrizione'], 'liente')),
         ];
     }
